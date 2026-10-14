@@ -1,0 +1,51 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background-color: #0b1120;
+    color: #f8fafc;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Fredoka', 'Plus Jakarta Sans', sans-serif;
+  }
+
+  .font-mono-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.4;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.9;
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 3.5s ease-in-out infinite;
+}
+
+.animate-pulse-ring {
+  animation: pulseRing 2s ease-in-out infinite;
+}

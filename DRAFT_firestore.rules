@@ -1,0 +1,306 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 2. Primitives & Helpers
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedAdmin() {
+      return isSignedIn() && request.auth.token.email == 'wsas1271@gmail.com';
+    }
+
+    function isAdmin() {
+      return isBootstrappedAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.uid)));
+    }
+
+    // 3. Entity Validation Blueprints
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'phone', 'email', 'balance', 'totalWins', 'totalPlayed', 'role', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'phone', 'email', 'balance', 'totalWins', 'totalPlayed', 'referralCode', 'referredBy', 'referralCount', 'role', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.phone is string && data.phone.size() >= 0 && data.phone.size() <= 30
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 120
+        && data.balance is number && data.balance >= 0 && data.balance <= 10000000
+        && data.totalWins is number && data.totalWins >= 0 && data.totalWins <= 1000000
+        && data.totalPlayed is number && data.totalPlayed >= 0 && data.totalPlayed <= 1000000
+        && (!('referralCode' in data) || (data.referralCode is string && data.referralCode.size() >= 4 && data.referralCode.size() <= 20))
+        && (!('referredBy' in data) || (data.referredBy is string && data.referredBy.size() >= 0 && data.referredBy.size() <= 20))
+        && (!('referralCount' in data) || (data.referralCount is number && data.referralCount >= 0 && data.referralCount <= 100000))
+        && data.role is string && data.role.size() <= 20 && (data.role == 'user' || data.role == 'admin')
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidReferralCodeEntry(data) {
+      return data.keys().hasAll(['code', 'ownerUid', 'ownerName', 'createdAt'])
+        && data.keys().hasOnly(['code', 'ownerUid', 'ownerName', 'createdAt'])
+        && isValidId(data.code)
+        && data.code.size() >= 4 && data.code.size() <= 20
+        && isValidId(data.ownerUid)
+        && data.ownerName is string && data.ownerName.size() >= 1 && data.ownerName.size() <= 80
+        && data.createdAt is timestamp;
+    }
+
+    function isValidReferralClaim(data) {
+      return data.keys().hasAll(['referrerUid', 'referrerCode', 'newUserUid', 'newUserName', 'bonusAmount', 'referrerClaimed', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['referrerUid', 'referrerCode', 'newUserUid', 'newUserName', 'bonusAmount', 'referrerClaimed', 'createdAt', 'updatedAt'])
+        && isValidId(data.referrerUid)
+        && isValidId(data.referrerCode)
+        && data.referrerCode.size() >= 4 && data.referrerCode.size() <= 20
+        && isValidId(data.newUserUid)
+        && data.newUserName is string && data.newUserName.size() >= 1 && data.newUserName.size() <= 80
+        && data.bonusAmount is number && data.bonusAmount == 15
+        && data.referrerClaimed is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidLeaderboardEntry(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'totalWins', 'totalPlayed', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'displayName', 'totalWins', 'totalPlayed', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80
+        && data.totalWins is number && data.totalWins >= 0 && data.totalWins <= 1000000
+        && data.totalPlayed is number && data.totalPlayed >= 0 && data.totalPlayed <= 1000000
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTransactionRecord(data) {
+      return data.keys().hasAll(['userId', 'userName', 'userPhone', 'type', 'method', 'amount', 'referenceCode', 'senderOrReceiverName', 'status', 'adminNote', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['userId', 'userName', 'userPhone', 'type', 'method', 'amount', 'referenceCode', 'senderOrReceiverName', 'status', 'adminNote', 'createdAt', 'updatedAt'])
+        && isValidId(data.userId)
+        && data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 80
+        && data.userPhone is string && data.userPhone.size() >= 1 && data.userPhone.size() <= 30
+        && data.type is string && data.type.size() <= 20 && (data.type == 'deposit' || data.type == 'withdraw')
+        && data.method is string && data.method.size() <= 20 && (data.method == 'CBE' || data.method == 'Awash' || data.method == 'Telebirr')
+        && data.amount is number && data.amount >= 10 && data.amount <= 500000
+        && data.referenceCode is string && data.referenceCode.size() >= 2 && data.referenceCode.size() <= 80
+        && data.senderOrReceiverName is string && data.senderOrReceiverName.size() >= 2 && data.senderOrReceiverName.size() <= 80
+        && data.status is string && data.status.size() <= 20 && (data.status == 'pending' || data.status == 'approved' || data.status == 'rejected')
+        && data.adminNote is string && data.adminNote.size() >= 0 && data.adminNote.size() <= 200
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidGameRecord(data) {
+      return data.keys().hasAll(['userId', 'userName', 'stake', 'prize', 'result', 'bingoType', 'ballsCalledCount', 'createdAt'])
+        && data.keys().hasOnly(['userId', 'userName', 'stake', 'prize', 'result', 'bingoType', 'ballsCalledCount', 'createdAt'])
+        && isValidId(data.userId)
+        && data.userName is string && data.userName.size() >= 1 && data.userName.size() <= 80
+        && data.stake is number && data.stake >= 5 && data.stake <= 100000
+        && data.prize is number && data.prize >= 0 && data.prize <= 1000000
+        && data.result is string && data.result.size() <= 20 && (data.result == 'won' || data.result == 'lost')
+        && data.bingoType is string && data.bingoType.size() >= 1 && data.bingoType.size() <= 50
+        && data.ballsCalledCount is number && data.ballsCalledCount >= 1 && data.ballsCalledCount <= 300
+        && data.createdAt is timestamp;
+    }
+
+    // 4. Admins Collection (Read-only for admin lookup)
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && (isOwner(adminId) || isBootstrappedAdmin());
+      allow list, create, update, delete: if false;
+    }
+
+    // 5. Users Collection (PII Isolated to Owner & Admin; allows 10 ETB Welcome Bonus on create)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if isSignedIn() && (existing().uid == request.auth.uid || isAdmin());
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == request.auth.uid
+        && (incoming().balance == 10 || incoming().balance == 0)
+        && incoming().totalWins == 0
+        && incoming().totalPlayed == 0
+        && (incoming().role == 'user' || (incoming().role == 'admin' && isBootstrappedAdmin()))
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidUserProfile(incoming())
+        && incoming().uid == existing().uid
+        && incoming().email == existing().email
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Action 1: Admin updating user balance or profile
+          isAdmin()
+          ||
+          // Action 2: Owner updating profile, referral fields, or gameplay stats & balance
+          (
+            isOwner(userId)
+            && incoming().role == existing().role
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'phone', 'balance', 'totalWins', 'totalPlayed', 'referralCode', 'referredBy', 'referralCount', 'updatedAt'])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // 6. Referral Codes Collection (Public Lookup by Code ID)
+    match /referral_codes/{code} {
+      allow get: if isValidId(code) && isSignedIn() && existing().code == code;
+      allow list: if isSignedIn() && existing().ownerUid == request.auth.uid;
+
+      allow create: if isSignedIn()
+        && isValidId(code)
+        && isValidReferralCodeEntry(incoming())
+        && incoming().code == code
+        && incoming().ownerUid == request.auth.uid
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update, delete: if false;
+    }
+
+    // 7. Referrals Collection (Tracks Referral Bonus Claims)
+    match /referrals/{newUserId} {
+      allow get: if isValidId(newUserId) && isSignedIn() && (existing().newUserUid == request.auth.uid || existing().referrerUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (existing().referrerUid == request.auth.uid || existing().newUserUid == request.auth.uid || isAdmin());
+
+      allow create: if isOwner(newUserId)
+        && isValidId(newUserId)
+        && isValidReferralClaim(incoming())
+        && incoming().newUserUid == request.auth.uid
+        && incoming().referrerUid != request.auth.uid
+        && incoming().referrerClaimed == false
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/referral_codes/$(incoming().referrerCode));
+
+      allow update: if isSignedIn()
+        && isValidId(newUserId)
+        && isValidReferralClaim(incoming())
+        && incoming().newUserUid == existing().newUserUid
+        && incoming().referrerUid == existing().referrerUid
+        && incoming().referrerCode == existing().referrerCode
+        && incoming().bonusAmount == existing().bonusAmount
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && existing().referrerClaimed == false
+        && incoming().referrerClaimed == true
+        && (
+          isAdmin()
+          ||
+          (
+            existing().referrerUid == request.auth.uid
+            && incoming().diff(existing()).affectedKeys().hasOnly(['referrerClaimed', 'updatedAt'])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // 8. Leaderboard Collection (Non-PII Public Ranking)
+    match /leaderboard/{userId} {
+      allow get: if isValidId(userId) && isSignedIn() && existing().totalWins >= 0;
+      allow list: if isSignedIn() && existing().totalWins >= 0;
+
+      allow create: if isOwner(userId)
+        && isValidId(userId)
+        && isValidLeaderboardEntry(incoming())
+        && incoming().uid == request.auth.uid
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update: if isSignedIn()
+        && isValidId(userId)
+        && isValidLeaderboardEntry(incoming())
+        && incoming().uid == existing().uid
+        && incoming().updatedAt == request.time
+        && (
+          isAdmin()
+          ||
+          (
+            isOwner(userId)
+            && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'totalWins', 'totalPlayed', 'updatedAt'])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // 9. Transactions Collection (Deposits & Withdrawals)
+    match /transactions/{txId} {
+      allow get: if isValidId(txId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn()
+        && isValidId(txId)
+        && isValidTransactionRecord(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().adminNote == ''
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update: if isSignedIn()
+        && isValidId(txId)
+        && isValidTransactionRecord(incoming())
+        && incoming().userId == existing().userId
+        && incoming().type == existing().type
+        && incoming().method == existing().method
+        && incoming().amount == existing().amount
+        && incoming().referenceCode == existing().referenceCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          // Only Admin can approve or reject transactions
+          isAdmin()
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'adminNote', 'updatedAt'])
+        );
+
+      allow delete: if false;
+    }
+
+    // 10. Games Collection (Match History)
+    match /games/{gameId} {
+      allow get: if isValidId(gameId) && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+
+      allow create: if isSignedIn()
+        && isValidId(gameId)
+        && isValidGameRecord(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update, delete: if false;
+    }
+
+    // 11. Live Multiplayer Rooms Collection
+    match /rooms/{roomId} {
+      allow get, list: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && isValidId(roomId);
+      allow delete: if false;
+    }
+  }
+}

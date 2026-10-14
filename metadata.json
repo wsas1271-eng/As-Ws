@@ -1,0 +1,6 @@
+{
+  "name": "Frenzy Bingo Ethiopia",
+  "description": "Tapha Bingo Frenzy ajaa'ibaa kan maallaqaan taphatamu - CBE, Awash Bank fi Telebirr dhaan birrii galchaatii mo'adhaa!",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

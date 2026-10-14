@@ -1,0 +1,149 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile containing account details, balance in ETB, referral code, and game statistics",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "phone": { "type": "string", "minLength": 0, "maxLength": 30 },
+        "email": { "type": "string", "minLength": 3, "maxLength": 120 },
+        "balance": { "type": "number" },
+        "totalWins": { "type": "number" },
+        "totalPlayed": { "type": "number" },
+        "referralCode": { "type": "string", "minLength": 4, "maxLength": 20 },
+        "referredBy": { "type": "string", "minLength": 0, "maxLength": 20 },
+        "referralCount": { "type": "number" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "phone", "email", "balance", "totalWins", "totalPlayed", "role", "createdAt", "updatedAt"]
+    },
+    "ReferralCodeEntry": {
+      "title": "ReferralCodeEntry",
+      "description": "Public lookup mapping a unique referralCode to the owner's uid and displayName",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string", "minLength": 4, "maxLength": 20, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["code", "ownerUid", "ownerName", "createdAt"]
+    },
+    "ReferralClaim": {
+      "title": "ReferralClaim",
+      "description": "Record of a new user registering with a friend's referral code to award both users a bonus",
+      "type": "object",
+      "properties": {
+        "referrerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "referrerCode": { "type": "string", "minLength": 4, "maxLength": 20 },
+        "newUserUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "newUserName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "bonusAmount": { "type": "number" },
+        "referrerClaimed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["referrerUid", "referrerCode", "newUserUid", "newUserName", "bonusAmount", "referrerClaimed", "createdAt", "updatedAt"]
+    },
+    "LeaderboardEntry": {
+      "title": "LeaderboardEntry",
+      "description": "Publicly visible non-PII leaderboard entry for top Bingo Frenzy players",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "displayName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "totalWins": { "type": "number" },
+        "totalPlayed": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "displayName", "totalWins", "totalPlayed", "updatedAt"]
+    },
+    "TransactionRecord": {
+      "title": "TransactionRecord",
+      "description": "Deposit or withdrawal request submitted via CBE, Awash Bank, or Telebirr awaiting Admin approval",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "userPhone": { "type": "string", "minLength": 1, "maxLength": 30 },
+        "type": { "type": "string", "enum": ["deposit", "withdraw"] },
+        "method": { "type": "string", "enum": ["CBE", "Awash", "Telebirr"] },
+        "amount": { "type": "number" },
+        "referenceCode": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "senderOrReceiverName": { "type": "string", "minLength": 2, "maxLength": 80 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "adminNote": { "type": "string", "minLength": 0, "maxLength": 200 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "userPhone", "type", "method", "amount", "referenceCode", "senderOrReceiverName", "status", "adminNote", "createdAt", "updatedAt"]
+    },
+    "GameRecord": {
+      "title": "GameRecord",
+      "description": "Completed Bingo Frenzy match record",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "userName": { "type": "string", "minLength": 1, "maxLength": 80 },
+        "stake": { "type": "number" },
+        "prize": { "type": "number" },
+        "result": { "type": "string", "enum": ["won", "lost"] },
+        "bingoType": { "type": "string", "minLength": 1, "maxLength": 50 },
+        "ballsCalledCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "userName", "stake", "prize", "result", "bingoType", "ballsCalledCount", "createdAt"]
+    },
+    "LiveRoom": {
+      "title": "LiveRoom",
+      "description": "Shared real-time multiplayer Bingo room state",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 50 },
+        "stake": { "type": "number" },
+        "status": { "type": "string", "enum": ["LOBBY", "PLAYING", "RESULT"] },
+        "roundId": { "type": "string", "maxLength": 50 },
+        "roundStartTime": { "type": "number" },
+        "countdownEndTime": { "type": "number" },
+        "derash": { "type": "number" },
+        "playersCount": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "stake", "status", "roundId", "derash", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "UserProfile" },
+      "description": "User profile document storing balance, stats, referralCode, and role"
+    },
+    "/referral_codes/{code}": {
+      "schema": { "$ref": "ReferralCodeEntry" },
+      "description": "Public lookup mapping a referral code to its owner"
+    },
+    "/referrals/{newUserId}": {
+      "schema": { "$ref": "ReferralClaim" },
+      "description": "Referral reward record keyed by the invited user's UID"
+    },
+    "/leaderboard/{userId}": {
+      "schema": { "$ref": "LeaderboardEntry" },
+      "description": "Public leaderboard document storing displayName, totalWins, and totalPlayed without PII"
+    },
+    "/transactions/{txId}": {
+      "schema": { "$ref": "TransactionRecord" },
+      "description": "Deposit and withdrawal requests reviewed by Admin"
+    },
+    "/games/{gameId}": {
+      "schema": { "$ref": "GameRecord" },
+      "description": "History of Bingo Frenzy matches played"
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "LiveRoom" },
+      "description": "Live multiplayer room document synchronized across all connected players"
+    }
+  }
+}
